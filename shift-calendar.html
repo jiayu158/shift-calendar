@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="班表月曆">
+<meta name="theme-color" content="#f5f2ee">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>班表月曆</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f2ee;
+    --surface: #ffffff;
+    --border: #e5dfd6;
+    --text: #2c2520;
+    --text-muted: #9b8f85;
+    --today-ring: #c0392b;
+
+    /* 工作A顏色 */
+    --jobA-1: #1a6b5a; /* 早班A */
+    --jobA-2: #2e9e84; /* 中班A */
+    --jobA-3: #145246; /* 晚班A */
+    --jobA-4: #4ab89a; /* 假班A */
+
+    /* 工作B顏色 */
+    --jobB-1: #1e3a8a; /* 早班B */
+    --jobB-2: #2563eb; /* 中班B */
+    --jobB-3: #1e40af; /* 晚班B */
+    --jobB-4: #60a5fa; /* 假班B */
+
+    --rest: #d1c5b8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 40px;
+    padding-top: max(24px, env(safe-area-inset-top));
+    padding-bottom: max(40px, env(safe-area-inset-bottom));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 900px;
+    margin: 0 auto 28px;
+  }
+
+  .header-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2rem;
+    letter-spacing: .02em;
+    color: var(--text);
+  }
+
+  .header-title span {
+    display: block;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: .75rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  .nav-btn {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    width: 40px; height: 40px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .nav-btn:hover { background: var(--border); }
+
+  .month-label {
+    font-size: 1.05rem;
+    font-weight: 500;
+    min-width: 110px;
+    text-align: center;
+  }
+
+  /* ── Legend ── */
+  .legend-wrap {
+    max-width: 900px;
+    margin: 0 auto 20px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .legend-group {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 14px;
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .legend-group-title {
+    font-size: .7rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+
+  .legend-items { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .legend-dot {
+    display: flex; align-items: center; gap: 5px;
+    font-size: .76rem; font-weight: 500; color: #fff;
+    padding: 3px 9px 3px 6px;
+    border-radius: 20px;
+    cursor: default;
+  }
+  .legend-dot .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.4); }
+
+  /* ── Calendar ── */
+  .calendar {
+    max-width: 900px;
+    margin: 0 auto;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 4px 28px rgba(0,0,0,.06);
+  }
+
+  .weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1.5px solid var(--border);
+  }
+
+  .weekday {
+    text-align: center;
+    padding: 10px 0;
+    font-size: .72rem;
+    font-weight: 500;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .weekday:first-child { color: #c0392b; }
+  .weekday:last-child  { color: #2563eb; }
+
+  .days-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+  }
+
+  .day-cell {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    min-height: 100px;
+    padding: 8px 6px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: relative;
+    cursor: pointer;
+    transition: background .12s;
+    overflow: visible;
+  }
+  .day-cell:hover { background: #faf8f5; }
+  .day-cell:nth-child(7n) { border-right: none; }
+
+  .day-num {
+    font-size: .82rem;
+    font-weight: 600;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    line-height: 1;
+    margin-bottom: 2px;
+    flex-shrink: 0;
+  }
+  .day-cell.other-month .day-num { color: #ccc; }
+  .day-cell.today .day-num {
+    background: var(--today-ring);
+    color: #fff;
+  }
+  .day-cell.sunday  .day-num { color: #c0392b; }
+  .day-cell.saturday .day-num { color: #2563eb; }
+  .day-cell.other-month { background: #faf9f7; }
+
+  /* ── Shift pills ── */
+  .shift-pill {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: .6rem;
+    font-weight: 500;
+    color: #fff;
+    line-height: 1.3;
+    cursor: pointer;
+    position: relative;
+    width: 100%;
+    min-width: 0;
+  }
+  .shift-pill .pill-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.45);
+    flex-shrink: 0;
+  }
+  .shift-pill .pill-label {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .shift-pill .pill-del {
+    width: 13px; height: 13px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: rgba(0,0,0,.22);
+    font-size: .55rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity .15s;
+  }
+  .shift-pill:hover .pill-del { opacity: 1; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(44,37,32,.45);
+    backdrop-filter: blur(3px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 28px 24px;
+    width: min(440px, 94vw);
+    box-shadow: 0 16px 60px rgba(0,0,0,.18);
+    animation: slideUp .22s ease;
+  }
+  @keyframes slideUp {
+    from { opacity:0; transform: translateY(18px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+
+  .modal-date {
+    font-size: .72rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .modal-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 20px; }
+
+  .shift-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+    max-height: 55vh;
+    overflow-y: auto;
+  }
+
+  .shift-card {
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 14px 10px;
+    cursor: pointer;
+    transition: border-color .15s, box-shadow .15s, transform .12s;
+    position: relative;
+  }
+  .shift-card:hover {
+    border-color: #aaa;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    transform: translateY(-1px);
+  }
+  .shift-card.selected {
+    border-color: transparent;
+    box-shadow: 0 0 0 2.5px currentColor;
+  }
+  .shift-card-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 4px;
+  }
+  .shift-card-color {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .shift-card-name { font-weight: 600; font-size: .95rem; }
+  .shift-card-meta {
+    display: flex; gap: 12px;
+    font-size: .76rem;
+    color: var(--text-muted);
+    margin-left: 20px;
+  }
+  .shift-card-meta span { display: flex; align-items: center; gap: 3px; }
+
+  .shift-group-label {
+    font-size: .67rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 6px;
+    padding-left: 2px;
+  }
+
+  .rest-card {
+    background: var(--bg);
+    border: 1.5px dashed var(--border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    text-align: center;
+    font-size: .88rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .rest-card:hover { background: #ede8e1; }
+
+  .modal-actions {
+    display: flex; gap: 10px;
+    margin-top: 6px;
+  }
+  .btn {
+    flex: 1;
+    padding: 11px;
+    border-radius: 12px;
+    border: none;
+    font-family: inherit;
+    font-size: .9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: filter .15s;
+  }
+  .btn:hover { filter: brightness(.93); }
+  .btn-cancel { background: var(--bg); color: var(--text-muted); }
+  .btn-confirm { background: var(--text); color: #fff; }
+
+  /* ── Tooltip ── */
+  .tip {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2c2520ee;
+    color: #fff;
+    border-radius: 10px;
+    padding: 7px 11px;
+    font-size: .72rem;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0;
+    transition: opacity .15s;
+    line-height: 1.7;
+  }
+  .shift-pill:hover .tip { opacity: 1; }
+
+  /* ── Settings panel ── */
+  .settings-btn {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 0 14px;
+    height: 40px;
+    cursor: pointer;
+    font-size: .82rem;
+    font-weight: 500;
+    color: var(--text);
+    display: flex; align-items: center; gap: 6px;
+    transition: background .15s;
+  }
+  .settings-btn:hover { background: var(--border); }
+
+  .settings-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(44,37,32,.45);
+    backdrop-filter: blur(3px);
+    z-index: 200;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .settings-overlay.open { display: flex; }
+
+  .settings-panel {
+    background: var(--surface);
+    border-radius: 24px 24px 0 0;
+    padding: 28px 24px 40px;
+    width: min(600px, 100vw);
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: slideUp .22s ease;
+  }
+
+  .settings-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 20px; }
+
+  .job-section { margin-bottom: 24px; }
+  .job-section-title {
+    font-size: .7rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--text-muted); font-weight: 600; margin-bottom: 12px;
+  }
+
+  .shift-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .shift-row input[type=text], .shift-row input[type=time] {
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-family: inherit;
+    font-size: .82rem;
+    outline: none;
+    transition: border-color .15s;
+    background: var(--bg);
+  }
+  .shift-row input:focus { border-color: #888; }
+  .shift-row input.name { width: 90px; }
+  .shift-row input.time { width: 90px; }
+  .shift-row input.place { flex: 1; min-width: 90px; }
+
+  .color-swatch {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 2.5px solid rgba(0,0,0,.08);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .add-shift-btn {
+    background: none;
+    border: 1.5px dashed var(--border);
+    border-radius: 10px;
+    padding: 7px 14px;
+    font-family: inherit;
+    font-size: .8rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    width: 100%;
+    margin-top: 4px;
+  }
+  .add-shift-btn:hover { background: var(--bg); }
+
+  .del-shift-btn {
+    background: none; border: none;
+    color: var(--text-muted); cursor: pointer;
+    font-size: 1rem; padding: 0 4px;
+  }
+  .del-shift-btn:hover { color: #c0392b; }
+
+  .settings-actions { display: flex; gap: 10px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-title">
+    <span>我的班表</span>
+    <span id="headerMonth">2025年 3月</span>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button class="settings-btn" onclick="openSettings()">⚙ 班別設定</button>
+    <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
+    <span class="month-label" id="navLabel"></span>
+    <button class="nav-btn" onclick="changeMonth(1)">›</button>
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="legend-wrap" id="legendWrap"></div>
+
+<!-- Calendar -->
+<div class="calendar">
+  <div class="weekdays">
+    <div class="weekday">日</div>
+    <div class="weekday">一</div>
+    <div class="weekday">二</div>
+    <div class="weekday">三</div>
+    <div class="weekday">四</div>
+    <div class="weekday">五</div>
+    <div class="weekday">六</div>
+  </div>
+  <div class="days-grid" id="daysGrid"></div>
+</div>
+
+<!-- Shift Picker Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-date" id="modalDate"></div>
+    <div class="modal-title" id="modalTitle">選擇班別</div>
+    <div class="shift-cards" id="shiftCards"></div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn btn-confirm" onclick="confirmShift()">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Panel -->
+<div class="settings-overlay" id="settingsOverlay" onclick="handleSettingsOverlayClick(event)">
+  <div class="settings-panel">
+    <div class="settings-title">班別設定</div>
+    <div id="jobSections"></div>
+    <div class="settings-actions">
+      <button class="btn btn-cancel" onclick="closeSettings()">取消</button>
+      <button class="btn btn-confirm" onclick="saveSettings()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────
+let currentYear, currentMonth;
+let schedule = {}; // { "YYYY-MM-DD": [{jobIndex, shiftIndex}, ...] }
+let selectedDate = null;
+let pendingShifts = []; // shifts to set for selectedDate
+
+// Default shift config
+let jobs = [
+  {
+    name: "工作 A",
+    shifts: [
+      { name: "早班", start: "08:00", end: "16:00", place: "台北店", color: "#1a6b5a" },
+      { name: "中班", start: "12:00", end: "20:00", place: "台北店", color: "#2e9e84" },
+      { name: "晚班", start: "16:00", end: "00:00", place: "台北店", color: "#145246" },
+      { name: "休假", start: "", end: "", place: "", color: "#8bc4b8" },
+    ]
+  },
+  {
+    name: "工作 B",
+    shifts: [
+      { name: "早班", start: "09:00", end: "17:00", place: "信義區", color: "#1e3a8a" },
+      { name: "中班", start: "13:00", end: "21:00", place: "信義區", color: "#2563eb" },
+      { name: "晚班", start: "17:00", end: "01:00", place: "信義區", color: "#1e40af" },
+      { name: "休假", start: "", end: "", place: "", color: "#60a5fa" },
+    ]
+  }
+];
+
+// Load saved data
+function loadData() {
+  try {
+    const s = localStorage.getItem('shift_schedule');
+    const j = localStorage.getItem('shift_jobs');
+    if (s) schedule = JSON.parse(s);
+    if (j) jobs = JSON.parse(j);
+  } catch(e) {}
+}
+function saveData() {
+  localStorage.setItem('shift_schedule', JSON.stringify(schedule));
+  localStorage.setItem('shift_jobs', JSON.stringify(jobs));
+}
+
+// ── Init ───────────────────────────────────────────────
+function init() {
+  loadData();
+  const now = new Date();
+  currentYear = now.getFullYear();
+  currentMonth = now.getMonth();
+  render();
+}
+
+function changeMonth(delta) {
+  currentMonth += delta;
+  if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+  render();
+}
+
+// ── Render ─────────────────────────────────────────────
+const MONTH_NAMES = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+const DAY_NAMES = ['日','一','二','三','四','五','六'];
+
+function dateKey(y, m, d) {
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+function render() {
+  document.getElementById('headerMonth').textContent = `${currentYear}年 ${MONTH_NAMES[currentMonth]}`;
+  document.getElementById('navLabel').textContent = `${currentYear} / ${String(currentMonth+1).padStart(2,'0')}`;
+  renderLegend();
+  renderCalendar();
+}
+
+function renderLegend() {
+  const wrap = document.getElementById('legendWrap');
+  wrap.innerHTML = jobs.map((job, ji) => `
+    <div class="legend-group">
+      <div class="legend-group-title">${job.name}</div>
+      <div class="legend-items">
+        ${job.shifts.map((s, si) => `
+          <div class="legend-dot" style="background:${s.color}">
+            <div class="dot"></div>
+            <span>${s.name}${s.start ? ' ' + s.start.slice(0,5) : ''}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderCalendar() {
+  const grid = document.getElementById('daysGrid');
+  grid.innerHTML = '';
+
+  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
+  const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
+
+  const today = new Date();
+  const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+
+  for (let i = 0; i < totalCells; i++) {
+    let day, year, month, isOther = false;
+    if (i < firstDay) {
+      day = daysInPrevMonth - firstDay + i + 1;
+      month = currentMonth - 1;
+      year = currentYear;
+      if (month < 0) { month = 11; year--; }
+      isOther = true;
+    } else if (i >= firstDay + daysInMonth) {
+      day = i - firstDay - daysInMonth + 1;
+      month = currentMonth + 1;
+      year = currentYear;
+      if (month > 11) { month = 0; year++; }
+      isOther = true;
+    } else {
+      day = i - firstDay + 1;
+      month = currentMonth;
+      year = currentYear;
+    }
+
+    const key = dateKey(year, month, day);
+    const dow = i % 7;
+    const isToday = key === todayKey;
+
+    const cell = document.createElement('div');
+    cell.className = 'day-cell' +
+      (isOther ? ' other-month' : '') +
+      (isToday ? ' today' : '') +
+      (dow === 0 ? ' sunday' : '') +
+      (dow === 6 ? ' saturday' : '');
+    cell.dataset.key = key;
+
+    // Day number
+    const numEl = document.createElement('div');
+    numEl.className = 'day-num';
+    numEl.textContent = day;
+    cell.appendChild(numEl);
+
+    // Shift pills
+    const shifts = schedule[key] || [];
+    shifts.forEach(({jobIndex, shiftIndex}) => {
+      const job = jobs[jobIndex];
+      if (!job) return;
+      const shift = job.shifts[shiftIndex];
+      if (!shift) return;
+
+      const pill = document.createElement('div');
+      pill.className = 'shift-pill';
+      pill.style.background = shift.color;
+
+      const timeStr = shift.start && shift.end ? `${shift.start}～${shift.end}` : '';
+      const placeStr = shift.place ? shift.place : '';
+
+      pill.innerHTML = `
+        <div class="dot pill-dot"></div>
+        <span class="pill-label">${job.name.replace('工作 ','')} ${shift.name}</span>
+        <span class="pill-del" onclick="removeShift(event,'${key}',${jobIndex},${shiftIndex})">✕</span>
+        <div class="tip">
+          <b>${job.name} · ${shift.name}</b><br>
+          ${timeStr ? '🕐 ' + timeStr + '<br>' : ''}
+          ${placeStr ? '📍 ' + placeStr : ''}
+        </div>
+      `;
+      cell.appendChild(pill);
+    });
+
+    cell.addEventListener('click', (e) => {
+      if (!e.target.classList.contains('pill-del')) openModal(key, year, month, day);
+    });
+
+    grid.appendChild(cell);
+  }
+}
+
+// ── Remove shift ───────────────────────────────────────
+function removeShift(e, key, ji, si) {
+  e.stopPropagation();
+  const arr = schedule[key] || [];
+  schedule[key] = arr.filter(x => !(x.jobIndex === ji && x.shiftIndex === si));
+  if (schedule[key].length === 0) delete schedule[key];
+  saveData();
+  renderCalendar();
+}
+
+// ── Modal ──────────────────────────────────────────────
+function openModal(key, year, month, day) {
+  selectedDate = key;
+  pendingShifts = JSON.parse(JSON.stringify(schedule[key] || []));
+
+  const dow = new Date(year, month, day).getDay();
+  document.getElementById('modalDate').textContent =
+    `${year}年${MONTH_NAMES[month]}${day}日 (${DAY_NAMES[dow]})`;
+  document.getElementById('modalTitle').textContent = '選擇班別';
+
+  renderShiftCards();
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function renderShiftCards() {
+  const container = document.getElementById('shiftCards');
+  container.innerHTML = '';
+
+  jobs.forEach((job, ji) => {
+    const label = document.createElement('div');
+    label.className = 'shift-group-label';
+    label.textContent = job.name;
+    container.appendChild(label);
+
+    job.shifts.forEach((shift, si) => {
+      const isSelected = pendingShifts.some(x => x.jobIndex === ji && x.shiftIndex === si);
+      const card = document.createElement('div');
+      card.className = 'shift-card' + (isSelected ? ' selected' : '');
+      card.style.color = shift.color;
+      card.innerHTML = `
+        <div class="shift-card-header">
+          <div class="shift-card-color" style="background:${shift.color}"></div>
+          <div class="shift-card-name">${shift.name}</div>
+          ${isSelected ? '<span style="margin-left:auto;font-size:.75rem;opacity:.7">✓ 已選</span>' : ''}
+        </div>
+        <div class="shift-card-meta">
+          ${shift.start ? `<span>🕐 ${shift.start}～${shift.end}</span>` : ''}
+          ${shift.place ? `<span>📍 ${shift.place}</span>` : ''}
+        </div>
+      `;
+      card.addEventListener('click', () => togglePendingShift(ji, si));
+      container.appendChild(card);
+    });
+  });
+
+  // Rest option
+  const restCard = document.createElement('div');
+  restCard.className = 'rest-card';
+  restCard.textContent = '✕ 清除此日所有班別';
+  restCard.addEventListener('click', () => { pendingShifts = []; renderShiftCards(); });
+  container.appendChild(restCard);
+}
+
+function togglePendingShift(ji, si) {
+  const idx = pendingShifts.findIndex(x => x.jobIndex === ji && x.shiftIndex === si);
+  if (idx >= 0) {
+    pendingShifts.splice(idx, 1);
+  } else {
+    pendingShifts.push({ jobIndex: ji, shiftIndex: si });
+  }
+  renderShiftCards();
+}
+
+function confirmShift() {
+  if (pendingShifts.length === 0) {
+    delete schedule[selectedDate];
+  } else {
+    schedule[selectedDate] = pendingShifts;
+  }
+  saveData();
+  closeModal();
+  renderCalendar();
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  selectedDate = null;
+  pendingShifts = [];
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+// ── Settings ───────────────────────────────────────────
+let editJobs;
+const PRESET_COLORS = ['#1a6b5a','#2e9e84','#145246','#8bc4b8','#1e3a8a','#2563eb','#1e40af','#60a5fa',
+  '#c0392b','#e74c3c','#e67e22','#f39c12','#8e44ad','#9b59b6','#2c3e50','#7f8c8d'];
+
+function openSettings() {
+  editJobs = JSON.parse(JSON.stringify(jobs));
+  renderSettingsPanel();
+  document.getElementById('settingsOverlay').classList.add('open');
+}
+
+function renderSettingsPanel() {
+  const container = document.getElementById('jobSections');
+  container.innerHTML = editJobs.map((job, ji) => `
+    <div class="job-section">
+      <div class="job-section-title" style="display:flex;align-items:center;gap:8px;">
+        <input type="text" value="${job.name}" onchange="editJobs[${ji}].name=this.value"
+          style="border:1.5px solid var(--border);border-radius:8px;padding:4px 8px;font-family:inherit;font-size:.8rem;background:var(--bg);outline:none;font-weight:600;width:120px">
+      </div>
+      ${job.shifts.map((s, si) => `
+        <div class="shift-row">
+          <div class="color-swatch" style="background:${s.color}"
+            onclick="pickColor(${ji},${si},this)" title="點擊選色"></div>
+          <input class="name" type="text" placeholder="班別名" value="${s.name}"
+            onchange="editJobs[${ji}].shifts[${si}].name=this.value">
+          <input class="time" type="time" value="${s.start}"
+            onchange="editJobs[${ji}].shifts[${si}].start=this.value">
+          <span style="font-size:.75rem;color:var(--text-muted)">～</span>
+          <input class="time" type="time" value="${s.end}"
+            onchange="editJobs[${ji}].shifts[${si}].end=this.value">
+          <input class="place" type="text" placeholder="地點" value="${s.place}"
+            onchange="editJobs[${ji}].shifts[${si}].place=this.value">
+          <button class="del-shift-btn" onclick="delShift(${ji},${si})">✕</button>
+        </div>
+      `).join('')}
+      <button class="add-shift-btn" onclick="addShift(${ji})">＋ 新增班別</button>
+    </div>
+  `).join('');
+}
+
+function pickColor(ji, si, el) {
+  const picker = document.createElement('input');
+  picker.type = 'color';
+  picker.value = editJobs[ji].shifts[si].color;
+  picker.style.display = 'none';
+  document.body.appendChild(picker);
+  picker.addEventListener('input', () => {
+    editJobs[ji].shifts[si].color = picker.value;
+    el.style.background = picker.value;
+  });
+  picker.click();
+  picker.addEventListener('change', () => picker.remove());
+}
+
+// 將 hex 轉成 HSL，再根據現有班別色系產生同色系新顏色
+function hexToHsl(hex) {
+  let r = parseInt(hex.slice(1,3),16)/255;
+  let g = parseInt(hex.slice(3,5),16)/255;
+  let b = parseInt(hex.slice(5,7),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  let h, s, l = (max+min)/2;
+  if (max === min) { h = s = 0; }
+  else {
+    const d = max - min;
+    s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+    switch(max) {
+      case r: h = ((g-b)/d + (g<b?6:0))/6; break;
+      case g: h = ((b-r)/d + 2)/6; break;
+      case b: h = ((r-g)/d + 4)/6; break;
+    }
+  }
+  return [Math.round(h*360), Math.round(s*100), Math.round(l*100)];
+}
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h/30) % 12;
+  const a = s * Math.min(l, 1-l);
+  const f = n => Math.round(255*(l - a*Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n), 1)))));
+  return '#' + [f(0),f(8),f(4)].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+
+function getJobBaseHue(ji) {
+  const shifts = editJobs[ji].shifts;
+  if (!shifts.length) return 180;
+  // 取第一個班別的色相作為基準
+  const [h] = hexToHsl(shifts[0].color);
+  return h;
+}
+
+function generateSameHueColor(ji) {
+  const shifts = editJobs[ji].shifts;
+  const baseHue = getJobBaseHue(ji);
+  // 根據現有班別數量調整亮度，避免重複
+  const count = shifts.length;
+  // 在同色相下，交替調整亮度與飽和度產生變化
+  const lightnessOptions = [35, 50, 28, 60, 42, 55];
+  const satOptions = [60, 70, 80, 50, 65, 75];
+  const l = lightnessOptions[count % lightnessOptions.length];
+  const s = satOptions[count % satOptions.length];
+  return hslToHex(baseHue, s, l);
+}
+
+function addShift(ji) {
+  const newColor = editJobs[ji].shifts.length > 0 ? generateSameHueColor(ji) : '#888888';
+  editJobs[ji].shifts.push({ name: '新班別', start: '09:00', end: '17:00', place: '', color: newColor });
+  renderSettingsPanel();
+}
+
+function delShift(ji, si) {
+  editJobs[ji].shifts.splice(si, 1);
+  renderSettingsPanel();
+}
+
+function saveSettings() {
+  jobs = editJobs;
+  saveData();
+  closeSettings();
+  render();
+}
+
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+}
+
+function handleSettingsOverlayClick(e) {
+  if (e.target === document.getElementById('settingsOverlay')) closeSettings();
+}
+
+// ── Go ─────────────────────────────────────────────────
+init();
+
+// ── PWA Service Worker 註冊 ─────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
